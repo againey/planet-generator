@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html style="width: 100%; height: 100%; margin: 0; padding: 0;">
+	<head>
+		<meta charset="utf-8">
+		<title>Experilous: Planet Generator (Version 1, 2014/09/28)</title>
+		<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r68/three.min.js"></script>
+		<script src="jquery.mousewheel.js"></script>
+		<script src="planet-generator.js"></script>
+		<link rel="stylesheet" type="text/css" href="planet-generator.css" />
+		<link rel="icon" href="/favicon-16.png" sizes="16x16">
+		<link rel="icon" href="/favicon-32.png" sizes="32x32">
+		<link rel="icon" href="/favicon-48.png" sizes="48x48">
+		<link rel="icon" href="/favicon-64.png" sizes="64x64">
+		<link rel="icon" href="/favicon-96.png" sizes="96x96">
+		<link rel="icon" href="/favicon-128.png" sizes="128x128">
+		<style>
+			#updatePanel
+			{
+				background-color: #9CF;
+				color: rgba(0, 0, 0, 1);
+				text-shadow: 1px 1px 2px rgba(255, 255, 255, 1), 1px 1px 3px rgba(255, 255, 255, 1);
+			}
+
+			#updatePanel h2
+			{
+				font-size: 150%;
+				font-weight: bold;
+			}
+
+			#updatePanel a:link { color: rgba(0, 0, 0, 1); }
+			#updatePanel a:visited { color: rgba(0, 0, 0, 1); }
+			#updatePanel a:hover { color: rgba(16, 32, 64, 1); }
+			#updatePanel a:hover:visited { color: rgba(16, 32, 64, 1); }
+			#updatePanel a:active { color: rgba(32, 64, 128, 1); }
+			#updatePanel a:active:visited { color: rgba(32, 64, 128, 1); }
+		</style>
+	</head>
+	<body>
+		<div id="viewportFrame" style="background-image: url('star-background.png'); background-repeat: repeat;"></div>
+
+		<div id="helpPanel" class="panel" style="position: absolute; left: 1em; top: 1em; width: 30em; height: 13em;">
+			<h2 style="top: 0.5em; width: 10em;">Move Camera</h2>
+			<div style="position: absolute; left: 0.5em; right: 0.5em; top: 2.0em; height: 3.5em;">
+				<div class="key">&#8679;</div><div class="key">&#8678;</div><div class="key">&#8681;</div><div class="key">&#8680;</div><br>
+				<div class="key">W</div><div class="key">A</div><div class="key">S</div><div class="key">D</div><br>
+				<div class="key">Z</div><div class="key">Q</div><div class="key">S</div><div class="key">D</div>
+			</div>
+			<h2 style="top: 0.5em; left: 11.0em;">Zoom Camera</h2>
+			<div style="position: absolute; left: 11.0em; right: 0.5em; top: 2.0em; height: 3.5em;">
+				<div class="key" style="float: right; width: 3.5em; height: 3.5em; padding: 0.5em 0.25em;">Mouse Wheel</div>
+				<div class="big-key">Page Up</div><div class="big-key">Numpad +</div><br>
+				<div class="big-key">Page Down</div><div class="big-key">Numpad -</div><br>
+			</div>
+			<h2 style="top: 9.0em; left: 0.5em; width: 10em;">Show/Hide Interface</h2>
+			<div style="position: absolute; left: 0.5em; width: 29em; top: 10.5em; height: 1.5em;">
+				<div class="key">0</div><div class="key">/</div>
+			</div>
+			<h2 style="top: 8.0em; left: 11.0em;">Generate New Planet</h2>
+			<div style="position: absolute; left: 11.0em; right: 0.5em; top: 9.25em; height: 1.5em;">
+				<div class="key-desc" style="width: calc(3em / 0.75);">(low)</div><div class="key-desc" style="width: calc(3em / 0.75);">(med)</div><div class="key-desc" style="width: calc(3em / 0.75);">(high)</div><div class="key-desc" style="float: right; width: calc(6em / 0.75);">(current detail)</div>
+			</div>
+			<div style="position: absolute; left: 11.0em; right: 0.5em; top: 10.5em; height: 1.5em;">
+				<div class="big-key" style="min-width: 3em;">1</div><div class="big-key" style="min-width: 3em;">2</div><div class="big-key" style="min-width: 3em;">3</div><div class="big-key" style="float: right;">Spacebar</div>
+			</div>
+		</div>
+
+		<div id="updatePanel" class="panel" style="position: absolute; right: 1em; top: 1em; width: 30em; height: 10.5em;">
+			<h2 style="top: calc(0.5em / 1.5); right: calc(0.5em / 1.5);">Updated Version Available!</h2>
+			<div style="position: absolute; left: 1.5em; right: 0.5em; top: 2.5em; height: 1.5em; margin: 0;"><a href="/1/planet-generator/2015-04-07/version-2">Click here for Version 2, released on 2015/04/07.</a></div>
+			<div style="position: absolute; left: 1.5em; right: 0.5em; top: 4.0em; height: 1.5em; margin: 0;">Includes flat map projections.</div>
+			<h2 style="top: calc(6.5em / 1.5); right: calc(0.5em / 1.5);">Official Product Available!</h2>
+			<div style="position: absolute; left: 1.5em; right: 0.5em; top: 8.5em; height: 1.5em; margin: 0;"><a href="/1/store/offer/worldbuilder" title="Store Page for Worldbuilder, official product inspired by this prototype." target="_blank">Click Here to visit the Worldbuilder store page.</a></div>
+		</div>
+
+		<div id="controlPanel" class="panel" style="position: absolute; left: 1em; bottom: 1em; width: 30em; height: 13em;">
+			<h2 style="top: 0.5em;">Surface Display Options</h2>
+			<div id="surfaceDisplayList" class="toggleButtonList onlyOne" style="position: absolute; left: 0.5em; right: 0.5em; top: 2.0em; height: 1.5em; margin: 0;"><!--
+				--><button id="showTerrainButton" title="Show Terrain">Terrain (5)</button><!--
+				--><button id="showPlatesButton" title="Show Tectonic Plates">Plates (6)</button><!--
+				--><button id="showElevationButton" title="Show Elevation">Elevation (7)</button><!--
+				--><button id="showTemperatureButton" title="Show Temperature">Temps (8)</button><!--
+				--><button id="showMoistureButton" title="Show Moisture">Moisture (9)</button><!--
+			--></div>
+
+			<h2 style="top: 4.5em;">Overlay Display Options</h2>
+			<div id="extrasDisplayList" class="toggleButtonList" style="position: absolute; left: 0.5em; right: 0.5em; top: 6.0em; height: 1.5em; margin: 0;"><!--
+				--><button id="showSunlightButton" title="Show Sunlight">Sun (U)</button><!--
+				--><button id="showPlateBoundariesButton" title="Show Tectonic Plate Boundaries">Plate Borders (I)</button><!--
+				--><button id="showPlateMovementsButton" title="Show Tectonic Plate Movements">Movements (O)</button><!--
+				--><button id="showAirCurrentsButton" title="Show Air Currents">Air Currents (P)</button><!--
+			--></div>
+
+			<h2 style="top: 8.5em;">Planet Generation</h2>
+			<div style="position: absolute; left: 0.5em; width: 15em; top: 10em; height: 2.5em;">
+				<div style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Detail Level</div>
+				<div id="detailDisplaylist" class="toggleButtonList onlyOne" style="position: absolute; left: 0; right: 0; top: 1em; height: 1.5em; margin: 0;"><!--
+					--><button id="lowDetailButton" style="width: calc(5em / 0.8); height: calc(1.5em / 0.8);" title="Use a low detail setting when generating a planet.">Low</button><!--
+					--><button id="mediumDetailButton" style="width: calc(5em / 0.8); height: calc(1.5em / 0.8);" title="Use a low detail setting when generating a planet.">Medium</button><!--
+					--><button id="highDetailButton" style="width: calc(5em / 0.8); height: calc(1.5em / 0.8);" title="Use a low detail setting when generating a planet.">High</button><!--
+				--></div>
+			</div>
+			<div style="position: absolute; width: 13.5em; right: 0.5em; top: 10em; height: 2.5em;">
+				<button id="generatePlanetButton" style="position: absolute; left: 0; width: calc(6.5em / 0.8); top: 0; height: calc(2.5em / 0.8); margin: 0;" title="Generate a new planet with current settings.">Generate</button>
+				<button id="advancedSettingsButton" style="position: absolute; right: 0; width: calc(6.5em / 0.8); top: 0; height: calc(2.5em / 0.8); margin: 0;" title="Configure advanced settings for planet generation.">Advanced</button>
+			</div>
+		</div>
+
+		<div id="dataPanel" class="panel" style="position: absolute; right: 1em; bottom: 1em; width: 30em; height: 13em;">
+			<table style="position: absolute; left: 0.5em; top: 0.5em; text-align: right; border-collapse: collapse;">
+				<colgroup>
+					<col style="width: 5em;" />
+					<col style="width: 4em; background-color: rgba(0, 0, 0, 0.2);" />
+				</colgroup>
+				<tr><td>Tiles:</td><td><span id="tileCountLabel"></span></td></tr>
+				<tr><td>Pentagons:</td><td><span id="pentagonCountLabel"></span></td></tr>
+				<tr><td>Hexagons:</td><td><span id="hexagonCountLabel"></span></td></tr>
+				<tr><td>Heptagons:</td><td><span id="heptagonCountLabel"></span></td></tr>
+				<tr><td>Plates:</td><td><span id="plateCountLabel"></span></td></tr>
+				<tr><td>Water %:</td><td><span id="waterPercentageLabel"></span></td></tr>
+			</table>
+			<div style="position: absolute; left: 0.5em; bottom: 3.5em; width: 9em; text-align: center;"><span style="font-size: 75%;">Raw Seed</span></div>
+			<div style="position: absolute; left: 0.5em; bottom: 2.5em; width: 9em; background-color: rgba(0, 0, 0, 0.2);"><input type="text" id="rawSeedLabel" style="font-size: 75%; width: 100%; height: 100%; border: none; background: none; color: #FFFFFF; text-align: center;"></input></div>
+			<div style="position: absolute; left: 0.5em; bottom: 1.5em; width: 9em; text-align: center;"><span style="font-size: 75%;">Original Seed</span></div>
+			<div style="position: absolute; left: 0.5em; bottom: 0.5em; width: 9em; background-color: rgba(0, 0, 0, 0.2);"><input type="text" id="originalSeedLabel" style="font-size: 75%; width: 100%; height: 100%; border: none; background: none; color: #FFFFFF; text-align: center;"></input></div>
+			<table style="position: absolute; right: 0.5em; top: 0.5em; text-align: right; border-collapse: collapse;">
+				<colgroup>
+					<col style="width: 10em;" />
+					<col style="width: 3em; background-color: rgba(0, 0, 0, 0.2);" />
+					<col style="width: 3em;" />
+					<col style="width: 3em; background-color: rgba(0, 0, 0, 0.2);" />
+				</colgroup>
+				<tr style="text-align: center;"><td></td><td>Min</td><td>Avg</td><td>Max</td></tr>
+				<tr><td>Air Current Speed:</td><td><span id="minAirCurrentSpeedLabel"></span></td><td><span id="avgAirCurrentSpeedLabel"></span></td><td><span id="maxAirCurrentSpeedLabel"></span></td></tr>
+				<tr><td>Elevation:</td><td><span id="minElevationLabel"></span></td><td><span id="avgElevationLabel"></span></td><td><span id="maxElevationLabel"></span></td></tr>
+				<tr><td>Temperature:</td><td><span id="minTemperatureLabel"></span></td><td><span id="avgTemperatureLabel"></span></td><td><span id="maxTemperatureLabel"></span></td></tr>
+				<tr><td>Moisture:</td><td><span id="minMoistureLabel"></span></td><td><span id="avgMoistureLabel"></span></td><td><span id="maxMoistureLabel"></span></td></tr>
+				<tr><td>Tile Drift Speed:</td><td><span id="minPlateMovementSpeedLabel"></span></td><td><span id="avgPlateMovementSpeedLabel"></span></td><td><span id="maxPlateMovementSpeedLabel"></span></td></tr>
+				<tr><td>Tile Area:</td><td><span id="minTileAreaLabel"></span></td><td><span id="avgTileAreaLabel"></span></td><td><span id="maxTileAreaLabel"></span></td></tr>
+				<tr><td>Plate Area:</td><td><span id="minPlateAreaLabel"></span></td><td><span id="avgPlateAreaLabel"></span></td><td><span id="maxPlateAreaLabel"></span></td></tr>
+				<tr><td>Plate Circumference:</td><td><span id="minPlateCircumferenceLabel"></span></td><td><span id="avgPlateCircumferenceLabel"></span></td><td><span id="maxPlateCircumferenceLabel"></span></td></tr>
+			</table>
+		</div>
+		
+		<div id="generationSettingsPanel" class="panel" style="position: absolute; left: calc(50% - 20em); right: calc(50% - 20em); top: calc(50% - 11em); bottom: calc(50% - 11em); background-color: rgba(32, 64, 128, 1);">
+			<h2 style="top: 0.5em;">Tile Topology Settings</h2>
+			<div style="position: absolute; left: 0.5em; width: 19em; top: 2.0em; height: 2.5em;">
+				<div id="detailLevelLabel" style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Detail Level (20)</div>
+				<input id="detailLevelRange" type="range" style="position: absolute; right: 0; width: 100%; top: 1em; height: 1.5em; font-size: 100%;" min="4" max="100" step="1" value="20"></input>
+			</div>
+			<div style="position: absolute; right: 0.5em; width: 19em; top: 2.0em; height: 2.5em;">
+				<div id="distortionLevelLabel" style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Distortion Level (100%)</div>
+				<input id="distortionLevelRange" type="range" style="position: absolute; right: 0; width: 100%; top: 1em; height: 1.5em; font-size: 100%;" min="0" max="100" step="1" value="100"></input>
+			</div>
+
+			<h2 style="top: 5.5em;">Terrain Generation Settings</h2>
+			<div style="position: absolute; left: 0.5em; width: 19em; top: 7.0em; height: 2.5em;">
+				<div style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Tectonic Plate Count (<span id="tectonicPlateCountLabel">30</span>)</div>
+				<input id="tectonicPlateCountRange" type="range" style="position: absolute; right: 0; width: 100%; top: 1em; height: 1.5em; font-size: 100%;" min="0" max="300" step="1" value="44"></input>
+			</div>
+			<div style="position: absolute; right: 0.5em; width: 19em; top: 7.0em; height: 2.5em;">
+				<div style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Oceanic Rate (<span id="oceanicRateLabel">70</span>%)</div>
+				<input id="oceanicRateRange" type="range" style="position: absolute; right: 0; width: 100%; top: 1em; height: 1.5em; font-size: 100%;" min="0" max="100" step="1" value="70"></input>
+			</div>
+			<div style="position: absolute; left: 0.5em; width: 19em; top: 10.0em; height: 2.5em;">
+				<div style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Heat Level (<span id="heatLevelLabel">0</span>%)</div>
+				<input id="heatLevelRange" type="range" style="position: absolute; right: 0; width: 100%; top: 1em; height: 1.5em; font-size: 100%;" min="-100" max="100" step="1" value="0"></input>
+			</div>
+			<div style="position: absolute; right: 0.5em; width: 19em; top: 10.0em; height: 2.5em;">
+				<div style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Moisture Level (<span id="moistureLevelLabel">0</span>%)</div>
+				<input id="moistureLevelRange" type="range" style="position: absolute; right: 0; width: 100%; top: 1em; height: 1.5em; font-size: 100%;" min="-100" max="100" step="1" value="0"></input>
+			</div>
+
+			<h2 style="top: 13.5em;">Miscellaneous Settings</h2>
+			<div style="position: absolute; left: 0.5em; width: calc(100% - 1em); top: 15.0em; height: 2.5em;">
+				<div style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Pseudorandom Seed (Integer or Text)</div>
+				<input id="seedTextBox" type="text" style="position: absolute; right: 0; width: 100%; top: 1em; height: 1.5em; font-size: 100%;" value=""></input>
+			</div>
+
+			<button id="advancedGeneratePlanetButton" style="position: absolute; left: calc(40% - 10em / 0.8); width: calc(10em / 0.8); top: calc(18.5em / 0.8); height: calc(2.5em / 0.8); margin: 0;" title="Generate a new planet with the indicated advanced settings.">Generate</button>
+			<button id="advancedCancelButton" style="position: absolute; right: calc(40% - 10em / 0.8); width: calc(10em / 0.8); top: calc(18.5em / 0.8); height: calc(2.5em / 0.8); margin: 0;" title="Hide the advanced settings dialog and do not generate a planet.">Cancel</button>
+		</div>
+		
+		<div id="progressPanel" class="panel">
+			<div id="progressActionLabel"></div>
+			<div id="progressBarFrame">
+				<div id="progressBar"></div>
+				<div id="progressBarLabel"></div>
+			</div>
+			<button id="progressCancelButton">Cancel</button>
+		</div>
+	</body>
+</html>
