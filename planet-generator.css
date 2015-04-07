@@ -210,6 +210,11 @@ div.key-desc
 	margin: calc(0.25em / 0.75);
 }
 
+#projectionDisplayList>button
+{
+	width: calc(100% / 3);
+}
+
 #surfaceDisplayList>button
 {
 	width: calc(100% / 5);

@@ -13,6 +13,7 @@ var zoomAnimationStartValue = null;
 var zoomAnimationEndValue = null;
 var cameraLatitude = 0;
 var cameraLongitude = 0;
+var projectionRenderMode = "globe";
 var surfaceRenderMode = "terrain";
 var renderSunlight = true;
 var renderPlateBoundaries = false;
@@ -58,8 +59,14 @@ $(document).ready(function onDocumentReady()
 {
 	scene = new THREE.Scene();
 	camera = new THREE.PerspectiveCamera(75, 1, 0.2, 2000);
+	mapCamera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 10);
 	renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 	projector = new THREE.Projector();
+
+	mapCamera.position.set(0, 0, 8);
+	mapCamera.up.set(0, 1, 0);
+	mapCamera.lookAt(new Vector3(0, 0, 0));
+	mapCamera.updateProjectionMatrix();
 	
 	renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCW);
 
@@ -88,6 +95,17 @@ $(document).ready(function onDocumentReady()
 	ui.helpPanel = $("#helpPanel");
 
 	ui.controlPanel = $("#controlPanel");
+	ui.projectionDisplayButtons =
+	{
+		globe: $("#projectGlobe"),
+		equalAreaMap: $("#projectEqualAreaMap"),
+		mercatorMap: $("#projectMercatorMap"),
+	};
+	
+	ui.projectionDisplayButtons.globe.click(setProjectionRenderMode.bind(null, "globe"));
+	ui.projectionDisplayButtons.equalAreaMap.click(setProjectionRenderMode.bind(null, "equalAreaMap"));
+	ui.projectionDisplayButtons.mercatorMap.click(setProjectionRenderMode.bind(null, "mercatorMap"));
+
 	ui.surfaceDisplayButtons =
 	{
 		terrain: $("#showTerrainButton"),
@@ -204,8 +222,6 @@ $(document).ready(function onDocumentReady()
 	ui.seedTextBox.on("input", function() { setSeed(ui.seedTextBox.val()); });
 	ui.advancedGeneratePlanetButton.click(function() { hideAdvancedSettings(); generatePlanetAsynchronous(); });
 	ui.advancedCancelButton.click(hideAdvancedSettings);
-
-	ui.updatePanel = $("#updatePanel");
 	
 	$("button").on("click", function(b) { $(this).blur(); });
 	$("button").on("focus", function() { disableKeys = true; });
@@ -216,6 +232,7 @@ $(document).ready(function onDocumentReady()
 	hideAdvancedSettings();
 	setPlateCount(50);
 
+	setProjectionRenderMode(projectionRenderMode, true);
 	setSurfaceRenderMode(surfaceRenderMode, true);
 	showHideSunlight(renderSunlight);
 	showHidePlateBoundaries(renderPlateBoundaries);
@@ -2340,6 +2357,11 @@ function buildSurfaceRenderObject(tiles, random, action)
 	var planetMaterial = new THREE.MeshLambertMaterial({ color: new THREE.Color(0x000000), ambient: new THREE.Color(0xFFFFFF), vertexColors: THREE.VertexColors, });
 	var planetRenderObject = new THREE.Mesh(planetGeometry, planetMaterial);
 	
+	var mapGeometry = new THREE.Geometry();
+	mapGeometry.dynamic = true;
+	var mapMaterial = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, });
+	var mapRenderObject = new THREE.Mesh(mapGeometry, mapMaterial);
+	
 	action.provideResult({
 		geometry: planetGeometry,
 		terrainColors: terrainColors,
@@ -2349,6 +2371,9 @@ function buildSurfaceRenderObject(tiles, random, action)
 		moistureColors: moistureColors,
 		material: planetMaterial,
 		renderObject: planetRenderObject,
+		mapGeometry: mapGeometry,
+		mapMaterial: mapMaterial,
+		mapRenderObject: mapRenderObject,
 	});
 }
 
@@ -2400,10 +2425,18 @@ function buildPlateBoundariesRenderObject(borders, action)
 	var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, });
 	var renderObject = new THREE.Mesh(geometry, material);
 	
+	var mapGeometry = new THREE.Geometry();
+	mapGeometry.dynamic = true;
+	var mapMaterial = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, });
+	var mapRenderObject = new THREE.Mesh(mapGeometry, mapMaterial);
+	
 	action.provideResult({
 		geometry: geometry,
 		material: material,
 		renderObject: renderObject,
+		mapGeometry: mapGeometry,
+		mapMaterial: mapMaterial,
+		mapRenderObject: mapRenderObject,
 	});
 }
 
@@ -2434,10 +2467,18 @@ function buildPlateMovementsRenderObject(tiles, action)
 	var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, });
 	var renderObject = new THREE.Mesh(geometry, material);
 	
+	var mapGeometry = new THREE.Geometry();
+	mapGeometry.dynamic = true;
+	var mapMaterial = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, });
+	var mapRenderObject = new THREE.Mesh(mapGeometry, mapMaterial);
+	
 	action.provideResult({
 		geometry: geometry,
 		material: material,
 		renderObject: renderObject,
+		mapGeometry: mapGeometry,
+		mapMaterial: mapMaterial,
+		mapRenderObject: mapRenderObject,
 	});
 }
 
@@ -2462,10 +2503,18 @@ function buildAirCurrentsRenderObject(corners, action)
 	var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xFFFFFF), });
 	var renderObject = new THREE.Mesh(geometry, material);
 	
+	var mapGeometry = new THREE.Geometry();
+	mapGeometry.dynamic = true;
+	var mapMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xFFFFFF), });
+	var mapRenderObject = new THREE.Mesh(mapGeometry, mapMaterial);
+	
 	action.provideResult({
 		geometry: geometry,
 		material: material,
 		renderObject: renderObject,
+		mapGeometry: mapGeometry,
+		mapMaterial: mapMaterial,
+		mapRenderObject: mapRenderObject,
 	});
 }
 
@@ -2933,7 +2982,7 @@ function getLongitudeDelta()
 function render()
 {
 	var currentRenderFrameTime = Date.now();
-	var frameDuration = lastRenderFrameTime !== null ? (currentRenderFrameTime - lastRenderFrameTime) * 0.001 : 0;
+	var frameDuration = lastRenderFrameTime !== null ? Math.min((currentRenderFrameTime - lastRenderFrameTime) * 0.001, 0.1) : 0;
 	
 	var cameraNeedsUpdated = false;
 	if (zoomAnimationStartTime !== null)
@@ -2983,9 +3032,67 @@ function render()
 	directionalLight.position.set(Math.cos(sunTime), 0, Math.sin(sunTime)).normalize();
 
 	requestAnimationFrame(render);
-	renderer.render(scene, camera);
+	if (projectionRenderMode === "globe")
+	{
+		renderer.render(scene, camera);
+	}
+	else
+	{
+		renderer.render(scene, mapCamera);
+	}
 	
 	lastRenderFrameTime = currentRenderFrameTime;
+}
+
+var mapProjections =
+{
+	equalAreaMap: function equalAreaMap(longitude, latitude, z)
+	{
+		return new Vector3(longitude / Math.PI, Math.sin(latitude), z);
+	},
+	mercatorMap: function mercatorMap(longitude, latitude, z)
+	{
+		return new Vector3(longitude / Math.PI, Math.log(Math.tan(Math.PI / 4 + Math.max(-1.5, Math.min(latitude * 0.4, 1.5)))) / 1.75, z);
+	},
+};
+
+var mapProjectionsInverse =
+{
+	equalAreaMap: function equalAreaMap(x, y)
+	{
+		return { longitude: x * Math.PI, latitude: Math.asin(y) };
+	},
+	mercatorMap: function mercatorMap(x, y)
+	{
+		return { longitude: x * Math.PI, latitude: (Math.atan(Math.exp(y * 1.75)) - Math.PI / 4) * 2.5 };
+	},
+};
+
+function renderMap()
+{
+	var project = mapProjections[projectionRenderMode];
+	if (project)
+	{
+		var surfaceColorArrayKeys = [ "terrainColors", "plateColors", "elevationColors", "temperatureColors", "moistureColors" ];
+		projectMap(planet.renderData.surface, surfaceColorArrayKeys, project);
+		projectMap(planet.renderData.plateBoundaries, null, project);
+		projectMap(planet.renderData.plateMovements, null, project);
+		projectMap(planet.renderData.airCurrents, null, project);
+
+		scene.add(planet.renderData.surface.mapRenderObject);
+		setSurfaceRenderMode(surfaceRenderMode, true);
+		showHideSunlight(renderSunlight);
+		showHidePlateBoundaries(renderPlateBoundaries);
+		showHidePlateMovements(renderPlateMovements);
+		showHideAirCurrents(renderAirCurrents);
+		
+		if (tileSelection !== null)
+		{
+			tileSelection.mapMaterial = tileSelection.material.clone();
+			projectMap(tileSelection, null, project);
+			planet.renderData.surface.mapRenderObject.add(tileSelection.mapRenderObject);
+		}
+	}
 }
 
 function resizeHandler()
@@ -3017,6 +3124,11 @@ function updateCamera()
 	camera.up.applyMatrix4(transformation);
 	camera.lookAt(new Vector3(0, 0, 1000).applyMatrix4(transformation));
 	camera.updateProjectionMatrix();
+
+	if (projectionRenderMode !== "globe")
+	{
+		renderMap();
+	}
 }
 
 function zoomHandler(event)
@@ -3067,8 +3179,19 @@ function selectTile(tile)
 	material.polygonOffset = true;
 	material.polygonOffsetFactor = -2;
 	material.polygonOffsetUnits = -2;
-	tileSelection = { tile: tile, renderObject: new THREE.Mesh(geometry, material) };
+	tileSelection = { tile: tile, geometry: geometry, material: material, renderObject: new THREE.Mesh(geometry, material) };
 	planet.renderData.surface.renderObject.add(tileSelection.renderObject);
+	
+	if (projectionRenderMode !== "globe")
+	{
+		project = mapProjections[projectionRenderMode];
+		if (project)
+		{
+			tileSelection.mapMaterial = material.clone();
+			projectMap(tileSelection, null, project);
+			planet.renderData.surface.mapRenderObject.add(tileSelection.mapRenderObject);
+		}
+	}
 }
 
 function deselectTile()
@@ -3076,6 +3199,10 @@ function deselectTile()
 	if (tileSelection !== null)
 	{
 		planet.renderData.surface.renderObject.remove(tileSelection.renderObject);
+		if (tileSelection.mapRenderObject)
+		{
+			planet.renderData.surface.mapRenderObject.remove(tileSelection.mapRenderObject);
+		}
 		tileSelection = null;
 	}
 }
@@ -3086,8 +3213,27 @@ function clickHandler(event)
 	{
 		var x = event.pageX / renderer.domElement.width * 2 - 1;
 		var y = 1 - event.pageY / renderer.domElement.height * 2;
-		var rayCaster = projector.pickingRay(new Vector3(x, y, 0), camera);
-		var intersection = planet.partition.intersectRay(rayCaster.ray);
+		var ray;
+		if (projectionRenderMode === "globe")
+		{
+			var rayCaster = projector.pickingRay(new Vector3(x, y, 0), camera);
+			ray = rayCaster.ray;
+		}
+		else
+		{
+			var projectInverse = mapProjectionsInverse[projectionRenderMode];
+			if (!projectInverse) return;
+			
+			var pos = projectInverse(x, y);
+			var origin = new Vector3(
+				Math.sin(pos.longitude) * 2000 * Math.cos(pos.latitude),
+				Math.sin(pos.latitude) * 2000,
+				Math.cos(pos.longitude) * 2000 * Math.cos(pos.latitude));
+			var transformation = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(cameraLatitude, cameraLongitude, 0, "ZYX"));
+			origin.applyMatrix4(transformation);
+			ray = new THREE.Ray(origin, origin.clone().negate().normalize());
+		}
+		var intersection = planet.partition.intersectRay(ray);
 		if (intersection !== false)
 			selectTile(intersection);
 		else
@@ -3098,6 +3244,7 @@ function clickHandler(event)
 function keyDownHandler(event)
 {
 	if (disableKeys === true ) return;
+	if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
 	
 	switch (event.which)
 	{
@@ -3124,6 +3271,7 @@ function keyDownHandler(event)
 function keyUpHandler(event)
 {
 	if (disableKeys === true ) return;
+	if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
 
 	switch (event.which)
 	{
@@ -3195,6 +3343,18 @@ function keyUpHandler(event)
 			setSurfaceRenderMode("moisture");
 			event.preventDefault();
 			break;
+		case KEY.G:
+			setProjectionRenderMode("globe");
+			event.preventDefault();
+			break;
+		case KEY.H:
+			setProjectionRenderMode("equalAreaMap");
+			event.preventDefault();
+			break;
+		case KEY.J:
+			setProjectionRenderMode("mercatorMap");
+			event.preventDefault();
+			break;
 		case KEY.U:
 			showHideSunlight();
 			event.preventDefault();
@@ -3228,6 +3388,7 @@ function displayPlanet(newPlanet)
 	{
 		tileSelection = null;
 		scene.remove(planet.renderData.surface.renderObject);
+		scene.remove(planet.renderData.surface.mapRenderObject);
 	}
 	else
 	{
@@ -3237,12 +3398,12 @@ function displayPlanet(newPlanet)
 	planet = newPlanet;
 	scene.add(planet.renderData.surface.renderObject);
 	
+	setProjectionRenderMode(projectionRenderMode, true);
 	setSurfaceRenderMode(surfaceRenderMode, true);
 	showHideSunlight(renderSunlight);
 	showHidePlateBoundaries(renderPlateBoundaries);
 	showHidePlateMovements(renderPlateMovements);
 	showHideAirCurrents(renderAirCurrents);
-	
 
 	updateCamera();
 	updateUI();
@@ -3257,7 +3418,6 @@ function showHideInterface()
 	ui.helpPanel.toggle();
 	ui.controlPanel.toggle();
 	ui.dataPanel.toggle();
-	ui.updatePanel.toggle();
 }
 
 function updateUI()
@@ -3313,6 +3473,247 @@ function updateProgressUI(action)
 	ui.progressActionLabel.text(action.getCurrentActionName());
 }
 
+function projectMap(renderData, globeColorArrayKeys, project)
+{
+	var mapGeometry = new THREE.Geometry();
+	var globeGeometry = renderData.geometry;
+	
+	if (globeColorArrayKeys)
+	{
+		renderData.mapColorArrays = {};
+		for (var i = 0; i < globeColorArrayKeys.length; ++i)
+		{
+			var globeColorArray = renderData[globeColorArrayKeys[i]];
+			var mapColorArray = [];
+			for (var j = 0; j < globeColorArray.length; ++j)
+			{
+				mapColorArray.push(globeColorArray[j].slice());
+			}
+			renderData.mapColorArrays[globeColorArrayKeys[i]] = mapColorArray;
+		}
+	}
+
+	var transformation = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-cameraLatitude, -cameraLongitude, 0, "XYZ"));
+	
+	for (var i = 0; i < globeGeometry.vertices.length; ++i)
+	{
+		var globePosition = globeGeometry.vertices[i].clone();
+		globePosition.applyMatrix4(transformation);
+		globePosition.multiplyScalar(0.001);
+		var longitude = Math.atan2(globePosition.x, globePosition.z);
+		var xSquared = globePosition.x * globePosition.x;
+		var ySquared = globePosition.y * globePosition.y;
+		var zSquared = globePosition.z * globePosition.z;
+		var latitude = -Math.asin(globePosition.y);
+		mapGeometry.vertices.push(project(longitude, latitude, Math.sqrt(xSquared + ySquared + zSquared) - 1));
+	}
+	
+	if (globeColorArrayKeys)
+	{
+		for (var i = 0; i < globeGeometry.faces.length; ++i)
+		{
+			var globeFace = globeGeometry.faces[i];
+			mapGeometry.faces.push(new THREE.Face3(globeFace.a, globeFace.b, globeFace.c, globeFace.normal));
+		}
+	}
+	else
+	{
+		for (var i = 0; i < globeGeometry.faces.length; ++i)
+		{
+			var globeFace = globeGeometry.faces[i];
+			mapGeometry.faces.push(new THREE.Face3(globeFace.a, globeFace.b, globeFace.c, globeFace.normal, globeFace.vertexColors));
+		}
+	}
+	
+	var checkForWrap = function checkForWrap(a, b)
+	{
+		if (a < -0.5 && b > 0.5) return 2;
+		else if (b < -0.5 && a > 0.5) return -2;
+		else return 0;
+	};
+	
+	var mergeWrap = function checkForWrap(a, b)
+	{
+		if (a !== 0) return a;
+		else if (b !== 0) return b;
+		else return 0;
+	};
+	
+	var addVertex = function addVertex(x, y, z, oldIndex)
+	{
+		var index = mapGeometry.vertices.length;
+		mapGeometry.vertices.push(new Vector3(x, y, z));
+		return index;
+	};
+	
+	var addFace;
+	if (globeColorArrayKeys)
+	{
+		addFace = function addFace(faceIndex, vertexIndex0, vertexIndex1, vertexIndex2)
+		{
+			mapGeometry.faces.push(new THREE.Face3(vertexIndex0, vertexIndex1, vertexIndex2, globeGeometry.faces[faceIndex].normal));
+			for (var i = 0; i < globeColorArrayKeys.length; ++i)
+			{
+				var key = globeColorArrayKeys[i];
+				renderData.mapColorArrays[key].push(renderData[globeColorArrayKeys[i]][faceIndex].slice());
+			}
+		};
+	}
+	else
+	{
+		addFace = function addFace(faceIndex, vertexIndex0, vertexIndex1, vertexIndex2)
+		{
+			mapGeometry.faces.push(new THREE.Face3(vertexIndex0, vertexIndex1, vertexIndex2, globeGeometry.faces[faceIndex].normal, globeGeometry.faces[faceIndex].vertexColors));
+		};
+	}
+	
+	var cornerWrap = function cornerWrap(wrap0, wrap1)
+	{
+		var delta = wrap0 - wrap1;
+		var sum = wrap0 + wrap1;
+		return delta * delta / sum;
+	};
+	
+	for (var i = 0; i < globeGeometry.faces.length; ++i)
+	{
+		var face = mapGeometry.faces[i];
+		var p0 = mapGeometry.vertices[face.a];
+		var p1 = mapGeometry.vertices[face.b];
+		var p2 = mapGeometry.vertices[face.c];
+		
+		var xWrap01 = checkForWrap(p0.x, p1.x);
+		var yWrap01 = checkForWrap(p0.y, p1.y);
+		var xWrap02 = checkForWrap(p0.x, p2.x);
+		var yWrap02 = checkForWrap(p0.y, p2.y);
+		var xWrap = mergeWrap(xWrap01, xWrap02);
+		var yWrap = mergeWrap(yWrap01, yWrap02);
+		
+		if (xWrap !== 0)
+		{
+			if (yWrap !== 0)
+			{
+				var xWrap12 = xWrap02 - xWrap01;
+				var yWrap12 = yWrap02 - yWrap01;
+				
+				addFace(i,
+					addVertex(p0.x + xWrap01, p0.y + yWrap01, p0.z),
+					face.b,
+					addVertex(p2.x - xWrap12, p2.y - yWrap12, p2.z));
+				
+				addFace(i,
+					addVertex(p0.x + xWrap02, p0.y + yWrap02, p0.z),
+					addVertex(p1.x + xWrap12, p1.y + yWrap12, p1.z),
+					face.c);
+				
+				addFace(i,
+					addVertex(p0.x + cornerWrap(xWrap01, xWrap02), p0.y + cornerWrap(xWrap01, xWrap02), p0.z),
+					addVertex(p1.x + cornerWrap(xWrap12, -xWrap01), p1.y + cornerWrap(xWrap12, -xWrap01), p1.z),
+					addVertex(p2.x + cornerWrap(-xWrap02, -xWrap12), p2.y + cornerWrap(-xWrap02, -xWrap12), p2.z));
+				
+				face.b = addVertex(p1.x - xWrap01, p1.y - yWrap01, p1.z);
+				face.c = addVertex(p2.x - xWrap02, p2.y - yWrap02, p2.z);
+			}
+			else
+			{
+				if (xWrap01 !== 0)
+				{
+					if (xWrap02 !== 0)
+					{
+						addFace(i,
+							face.a,
+							addVertex(p1.x - xWrap, p1.y, p1.z),
+							addVertex(p2.x - xWrap, p2.y, p2.z));
+						face.a = addVertex(p0.x + xWrap, p0.y, p0.z);
+					}
+					else
+					{
+						addFace(i,
+							addVertex(p0.x + xWrap, p0.y, p0.z),
+							face.b,
+							addVertex(p2.x + xWrap, p2.y, p2.z));
+						face.b = addVertex(p1.x - xWrap, p1.y, p1.z);
+					}
+				}
+				else if (xWrap02 !== 0)
+				{
+					addFace(i,
+						addVertex(p0.x + xWrap, p0.y, p0.z),
+						addVertex(p1.x + xWrap, p1.y, p1.z),
+						face.c);
+					face.c = addVertex(p2.x - xWrap, p2.y, p2.z);
+				}
+			}
+		}
+		else if (yWrap !== 0)
+		{
+			if (yWrap01 !== 0)
+			{
+				if (yWrap02 !== 0)
+				{
+					addFace(i,
+						face.a,
+						addVertex(p1.x, p1.y - yWrap, p1.z),
+						addVertex(p2.x, p2.y - yWrap, p2.z));
+					face.a = addVertex(p0.x, p0.y + yWrap, p0.z);
+				}
+				else
+				{
+					addFace(i,
+						addVertex(p0.x, p0.y + yWrap, p0.z),
+						face.b,
+						addVertex(p2.x, p2.y + yWrap, p2.z));
+					face.b = addVertex(p1.x, p1.y - yWrap, p1.z);
+				}
+			}
+			else if (yWrap02 !== 0)
+			{
+				addFace(i,
+					addVertex(p0.x, p0.y + yWrap, p0.z),
+					addVertex(p1.x, p1.y + yWrap, p1.z),
+					face.c);
+				face.c = addVertex(p2.x, p2.y - yWrap, p2.z);
+			}
+		}
+	}
+	
+	if (renderData.mapRenderObject && renderData.mapRenderObject.parent) renderData.mapRenderObject.parent.remove(renderData.mapRenderObject);
+	
+	renderData.mapGeometry = mapGeometry;
+	renderData.mapRenderObject = new THREE.Mesh(renderData.mapGeometry, renderData.mapMaterial);
+}
+
+function setProjectionRenderMode(mode, force)
+{
+	if (mode !== projectionRenderMode || force === true)
+	{
+		$("#projectionDisplayList>button").removeClass("toggled");
+		ui.projectionDisplayButtons[mode].addClass("toggled");
+		
+		if (!planet) return;
+
+		if (projectionRenderMode === "globe")
+		{
+			scene.remove(planet.renderData.surface.renderObject);
+		}
+		else
+		{
+			scene.remove(planet.renderData.surface.mapRenderObject);
+		}
+
+		projectionRenderMode = mode;
+		
+		if (mode === "globe")
+		{
+			scene.add(planet.renderData.surface.renderObject);
+			setSurfaceRenderMode(surfaceRenderMode, true);
+		}
+		else
+		{
+			renderMap();
+		}
+	}
+}
+
 function setSurfaceRenderMode(mode, force)
 {
 	if (mode !== surfaceRenderMode || force === true)
@@ -3325,17 +3726,32 @@ function setSurfaceRenderMode(mode, force)
 		if (!planet) return;
 
 		var colors;
-		if (mode === "terrain") colors = planet.renderData.surface.terrainColors;
-		else if (mode === "plates") colors = planet.renderData.surface.plateColors;
-		else if (mode === "elevation") colors = planet.renderData.surface.elevationColors;
-		else if (mode === "temperature") colors = planet.renderData.surface.temperatureColors;
-		else if (mode === "moisture") colors = planet.renderData.surface.moistureColors;
-		else return;
+		var geometry;
+		if (projectionRenderMode === "globe")
+		{
+			geometry = planet.renderData.surface.geometry;
+			if (mode === "terrain") colors = planet.renderData.surface.terrainColors;
+			else if (mode === "plates") colors = planet.renderData.surface.plateColors;
+			else if (mode === "elevation") colors = planet.renderData.surface.elevationColors;
+			else if (mode === "temperature") colors = planet.renderData.surface.temperatureColors;
+			else if (mode === "moisture") colors = planet.renderData.surface.moistureColors;
+			else return;
+		}
+		else
+		{
+			geometry = planet.renderData.surface.mapGeometry;
+			if (mode === "terrain") colors = planet.renderData.surface.mapColorArrays.terrainColors;
+			else if (mode === "plates") colors = planet.renderData.surface.mapColorArrays.plateColors;
+			else if (mode === "elevation") colors = planet.renderData.surface.mapColorArrays.elevationColors;
+			else if (mode === "temperature") colors = planet.renderData.surface.mapColorArrays.temperatureColors;
+			else if (mode === "moisture") colors = planet.renderData.surface.mapColorArrays.moistureColors;
+			else return;
+		}
 
-		var faces = planet.renderData.surface.geometry.faces;
+		var faces = geometry.faces;
 		for (var i = 0; i < faces.length; ++i) faces[i].vertexColors = colors[i];
 		
-		planet.renderData.surface.geometry.colorsNeedUpdate = true;
+		geometry.colorsNeedUpdate = true;
 	}
 }
 
@@ -3371,8 +3787,16 @@ function showHidePlateBoundaries(show)
 
 	if (!planet) return;
 	
-	if (renderPlateBoundaries) planet.renderData.surface.renderObject.add(planet.renderData.plateBoundaries.renderObject);
-	else planet.renderData.surface.renderObject.remove(planet.renderData.plateBoundaries.renderObject);
+	if (renderPlateBoundaries)
+	{
+		planet.renderData.surface.renderObject.add(planet.renderData.plateBoundaries.renderObject);
+		planet.renderData.surface.mapRenderObject.add(planet.renderData.plateBoundaries.mapRenderObject);
+	}
+	else
+	{
+		planet.renderData.surface.renderObject.remove(planet.renderData.plateBoundaries.renderObject);
+		planet.renderData.surface.mapRenderObject.remove(planet.renderData.plateBoundaries.mapRenderObject);
+	}
 }
 
 function showHidePlateMovements(show)
@@ -3384,9 +3808,16 @@ function showHidePlateMovements(show)
 
 	if (!planet) return;
 	
-	if (renderPlateMovements) planet.renderData.surface.renderObject.add(planet.renderData.plateMovements.renderObject);
-	else planet.renderData.surface.renderObject.remove(planet.renderData.plateMovements.renderObject);
-
+	if (renderPlateMovements)
+	{
+		planet.renderData.surface.renderObject.add(planet.renderData.plateMovements.renderObject);
+		planet.renderData.surface.mapRenderObject.add(planet.renderData.plateMovements.mapRenderObject);
+	}
+	else
+	{
+		planet.renderData.surface.renderObject.remove(planet.renderData.plateMovements.renderObject);
+		planet.renderData.surface.mapRenderObject.remove(planet.renderData.plateMovements.mapRenderObject);
+	}
 }
 
 function showHideAirCurrents(show)
@@ -3398,8 +3829,16 @@ function showHideAirCurrents(show)
 
 	if (!planet) return;
 	
-	if (renderAirCurrents) planet.renderData.surface.renderObject.add(planet.renderData.airCurrents.renderObject);
-	else planet.renderData.surface.renderObject.remove(planet.renderData.airCurrents.renderObject);
+	if (renderAirCurrents)
+	{
+		planet.renderData.surface.renderObject.add(planet.renderData.airCurrents.renderObject);
+		planet.renderData.surface.mapRenderObject.add(planet.renderData.airCurrents.mapRenderObject);
+	}
+	else
+	{
+		planet.renderData.surface.renderObject.remove(planet.renderData.airCurrents.renderObject);
+		planet.renderData.surface.mapRenderObject.remove(planet.renderData.airCurrents.mapRenderObject);
+	}
 }
 
 function serializePlanetMesh(mesh, prefix, suffix)

@@ -2,7 +2,7 @@
 <html style="width: 100%; height: 100%; margin: 0; padding: 0;">
 	<head>
 		<meta charset="utf-8">
-		<title>Experilous: Planet Generator (Version 1, 2014/09/28)</title>
+		<title>Experilous: Planet Generator (Version 2, 2015/04/07)</title>
 		<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
 		<script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r68/three.min.js"></script>
 		<script src="jquery.mousewheel.js"></script>
@@ -15,25 +15,6 @@
 		<link rel="icon" href="/favicon-96.png" sizes="96x96">
 		<link rel="icon" href="/favicon-128.png" sizes="128x128">
 		<style>
-			#updatePanel
-			{
-				background-color: #9CF;
-				color: rgba(0, 0, 0, 1);
-				text-shadow: 1px 1px 2px rgba(255, 255, 255, 1), 1px 1px 3px rgba(255, 255, 255, 1);
-			}
-
-			#updatePanel h2
-			{
-				font-size: 150%;
-				font-weight: bold;
-			}
-
-			#updatePanel a:link { color: rgba(0, 0, 0, 1); }
-			#updatePanel a:visited { color: rgba(0, 0, 0, 1); }
-			#updatePanel a:hover { color: rgba(16, 32, 64, 1); }
-			#updatePanel a:hover:visited { color: rgba(16, 32, 64, 1); }
-			#updatePanel a:active { color: rgba(32, 64, 128, 1); }
-			#updatePanel a:active:visited { color: rgba(32, 64, 128, 1); }
 		</style>
 	</head>
 	<body>
@@ -65,17 +46,16 @@
 			</div>
 		</div>
 
-		<div id="updatePanel" class="panel" style="position: absolute; right: 1em; top: 1em; width: 30em; height: 10.5em;">
-			<h2 style="top: calc(0.5em / 1.5); right: calc(0.5em / 1.5);">Updated Version Available!</h2>
-			<div style="position: absolute; left: 1.5em; right: 0.5em; top: 2.5em; height: 1.5em; margin: 0;"><a href="/1/planet-generator/2015-04-07/version-2">Click here for Version 2, released on 2015/04/07.</a></div>
-			<div style="position: absolute; left: 1.5em; right: 0.5em; top: 4.0em; height: 1.5em; margin: 0;">Includes flat map projections.</div>
-			<h2 style="top: calc(6.5em / 1.5); right: calc(0.5em / 1.5);">Official Product Available!</h2>
-			<div style="position: absolute; left: 1.5em; right: 0.5em; top: 8.5em; height: 1.5em; margin: 0;"><a href="/1/store/offer/worldbuilder" title="Store Page for Worldbuilder, official product inspired by this prototype." target="_blank">Click Here to visit the Worldbuilder store page.</a></div>
-		</div>
+		<div id="controlPanel" class="panel" style="position: absolute; left: 1em; bottom: 1em; width: 30em; height: 17em;">
+			<h2 style="top: 0.5em;">Projection Display Options</h2>
+			<div id="projectionDisplayList" class="toggleButtonList onlyOne" style="position: absolute; left: 0.5em; right: 0.5em; top: 2.0em; height: 1.5em; margin: 0;"><!--
+				--><button id="projectGlobe" title="Project as Globe">Globe (G)</button><!--
+				--><button id="projectEqualAreaMap" title="Project as Equal Area Map">Equal Area Map (H)</button><!--
+				--><button id="projectMercatorMap" title="Project as Mercator Map">Mercator Map (J)</button><!--
+			--></div>
 
-		<div id="controlPanel" class="panel" style="position: absolute; left: 1em; bottom: 1em; width: 30em; height: 13em;">
-			<h2 style="top: 0.5em;">Surface Display Options</h2>
-			<div id="surfaceDisplayList" class="toggleButtonList onlyOne" style="position: absolute; left: 0.5em; right: 0.5em; top: 2.0em; height: 1.5em; margin: 0;"><!--
+			<h2 style="top: 4.5em;">Surface Display Options</h2>
+			<div id="surfaceDisplayList" class="toggleButtonList onlyOne" style="position: absolute; left: 0.5em; right: 0.5em; top: 6.0em; height: 1.5em; margin: 0;"><!--
 				--><button id="showTerrainButton" title="Show Terrain">Terrain (5)</button><!--
 				--><button id="showPlatesButton" title="Show Tectonic Plates">Plates (6)</button><!--
 				--><button id="showElevationButton" title="Show Elevation">Elevation (7)</button><!--
@@ -83,16 +63,16 @@
 				--><button id="showMoistureButton" title="Show Moisture">Moisture (9)</button><!--
 			--></div>
 
-			<h2 style="top: 4.5em;">Overlay Display Options</h2>
-			<div id="extrasDisplayList" class="toggleButtonList" style="position: absolute; left: 0.5em; right: 0.5em; top: 6.0em; height: 1.5em; margin: 0;"><!--
+			<h2 style="top: 8.5em;">Overlay Display Options</h2>
+			<div id="extrasDisplayList" class="toggleButtonList" style="position: absolute; left: 0.5em; right: 0.5em; top: 10.0em; height: 1.5em; margin: 0;"><!--
 				--><button id="showSunlightButton" title="Show Sunlight">Sun (U)</button><!--
 				--><button id="showPlateBoundariesButton" title="Show Tectonic Plate Boundaries">Plate Borders (I)</button><!--
 				--><button id="showPlateMovementsButton" title="Show Tectonic Plate Movements">Movements (O)</button><!--
 				--><button id="showAirCurrentsButton" title="Show Air Currents">Air Currents (P)</button><!--
 			--></div>
 
-			<h2 style="top: 8.5em;">Planet Generation</h2>
-			<div style="position: absolute; left: 0.5em; width: 15em; top: 10em; height: 2.5em;">
+			<h2 style="top: 12.5em;">Planet Generation</h2>
+			<div style="position: absolute; left: 0.5em; width: 15em; top: 14em; height: 2.5em;">
 				<div style="position: absolute; left: 0; right: 0; top: 0; height: calc(1em / 0.75); text-align: center; font-size: 75%; ">Detail Level</div>
 				<div id="detailDisplaylist" class="toggleButtonList onlyOne" style="position: absolute; left: 0; right: 0; top: 1em; height: 1.5em; margin: 0;"><!--
 					--><button id="lowDetailButton" style="width: calc(5em / 0.8); height: calc(1.5em / 0.8);" title="Use a low detail setting when generating a planet.">Low</button><!--
@@ -100,7 +80,7 @@
 					--><button id="highDetailButton" style="width: calc(5em / 0.8); height: calc(1.5em / 0.8);" title="Use a low detail setting when generating a planet.">High</button><!--
 				--></div>
 			</div>
-			<div style="position: absolute; width: 13.5em; right: 0.5em; top: 10em; height: 2.5em;">
+			<div style="position: absolute; width: 13.5em; right: 0.5em; top: 14em; height: 2.5em;">
 				<button id="generatePlanetButton" style="position: absolute; left: 0; width: calc(6.5em / 0.8); top: 0; height: calc(2.5em / 0.8); margin: 0;" title="Generate a new planet with current settings.">Generate</button>
 				<button id="advancedSettingsButton" style="position: absolute; right: 0; width: calc(6.5em / 0.8); top: 0; height: calc(2.5em / 0.8); margin: 0;" title="Configure advanced settings for planet generation.">Advanced</button>
 			</div>
